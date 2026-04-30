@@ -67,5 +67,62 @@ This 4‑element dot product forms the **fundamental tile** used to build larger
 
 This design supports parallel instantiation, enabling scalable matrix multiplication across many compute units.
 
+## Repository Modules Overview
+
+This repository contains all hardware modules required to implement the BF16 Tensor Core MMA pipeline. Each file contributes to a specific stage of the memory access, arithmetic, or top‑level integration flow.
+
+### Memory Modules
+- **A_B_mem.v / A_B_mem.xco**  
+  Contains the memory blocks for **Matrix A** and **Matrix B**.  
+  These modules store the BF16 input rows (A) and columns (B) used for the dot‑product operation.
+
+- **C_mem.v / C_mem.xco**  
+  Stores the **Matrix C** accumulator values.  
+  These values are added to the result of the A×B multiplication to produce the final output matrix D.
+
+### Arithmetic Units
+- **bfloat16_add_stage1.v**  
+  First pipeline stage for BF16 addition. Handles exponent alignment and partial mantissa processing.
+
+- **bfloat16_add_stage2.v**  
+  Second pipeline stage for BF16 addition. Finalizes normalization and rounding to produce a BF16‑accurate sum.
+
+- **bfloat16_mult_stage1.v**  
+  First pipeline stage for BF16 multiplication. Performs exponent addition and mantissa multiplication.
+
+- **bfloat16_mult_stage2.v**  
+  Second pipeline stage for BF16 multiplication. Handles normalization, rounding, and BF16 formatting.
+
+### Matrix Multiplication Logic
+- **tensor_top.v**  
+  Implements the **core matrix multiplication logic**.  
+  This module performs the 4‑element dot‑product between a row of A and a column of B, producing the intermediate A×B result.
+
+### Top‑Level Integration
+- **top_upper_tensor.v**  
+  The **top‑most module** in the design.  
+  Integrates:
+  - BF16 multiplication stages  
+  - BF16 addition stages  
+  - Memory inputs (A, B, C)  
+  - Output accumulation  
+  This block completes the fused MMA operation:  
+  `D = A × B + C`
+
+### Output Aggregation
+- **registerfile4.v**  
+  Aggregates the **row‑based output matrix**.  
+  Collects the four BF16 results produced by the Tensor Core and organizes them into the final output row
+
+  ### Testbench
+- **top_upper_tensor_tb.v**  
+  This is the **testbench for the Tensor Core**.  
+  It verifies the full fused MMA pipeline implemented in `top_upper_tensor.v`, including:
+  - Memory reads from A, B, and C memory blocks  
+  - BF16 multiplication (stage 1 and stage 2)  
+  - BF16 addition (stage 1 and stage 2)  
+  - Dot‑product accumulation  
+  - Output aggregation through `registerfile4.v`  
+
 
 ---
