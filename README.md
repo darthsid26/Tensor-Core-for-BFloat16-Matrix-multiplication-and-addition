@@ -114,7 +114,7 @@ This repository contains all hardware modules required to implement the BF16 Ten
   Aggregates the **row‑based output matrix**.  
   Collects the four BF16 results produced by the Tensor Core and organizes them into the final output row
 
-  ### Testbench
+### Testbench
 - **top_upper_tensor_tb.v**  
   This is the **testbench for the Tensor Core**.  
   It verifies the full fused MMA pipeline implemented in `top_upper_tensor.v`, including:
