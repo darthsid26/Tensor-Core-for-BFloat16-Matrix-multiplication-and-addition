@@ -71,11 +71,11 @@ This design supports parallel instantiation, enabling scalable matrix multiplica
 ## Hardware Architecture
 
 <p align="center">
-  <img src="./Matrix Multiplication Architecture.jpeg" alt="Matrix Multiplication Architecture" width="600"/>
+  <img src="./Matrix Multiplication Architecture_cleaner.png" alt="Matrix Multiplication Architecture" width="600"/>
 </p>
 
 <p align="center">
-  <img src="./Tensor core top level architecture.jpeg" alt="Tensor core top level architecture" width="600"/>
+  <img src="./Tensor core top level architecture_cleaner.png" alt="Tensor core top level architecture" width="600"/>
 </p>
 
 
