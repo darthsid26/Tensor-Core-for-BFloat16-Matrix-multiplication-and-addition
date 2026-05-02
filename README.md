@@ -67,6 +67,62 @@ This 4‑element dot product forms the **fundamental tile** used to build larger
 
 This design supports parallel instantiation, enabling scalable matrix multiplication across many compute units.
 
+
+## Hardware Architecture
+
+<p align="center">
+  <img src="./Matrix Multiplication Architecture.jpeg" alt="Matrix Multiplication Architecture" width="600"/>
+</p>
+
+<p align="center">
+  <img src="./Tensor core top level architecture.jpeg" alt="Tensor core top level architecture" width="600"/>
+</p>
+
+
+This design implements **BFloat16 multiplication and addition units**, each pipelined into **two stages** to satisfy timing constraints encountered during GPU development. These operator blocks serve as the core compute units.
+
+The tensor memory is used to **store matrix data in row- or column-based format**, enabling efficient access during computation.
+
+The `Register_file4` module aggregates intermediate results to produce a **row-wise 64-bit output**, instead of a standard 16-bit BFloat16 value. This enables higher-precision accumulation for matrix operations.
+
+---
+
+## Inputs
+
+- `clk` — System clock  
+- `rst` — Reset signal  
+- `start` — Initiates computation  
+- `wenA` — Write enable for memory A  
+- `wenB` — Write enable for memory B  
+- `wenC` — Write enable for memory C  
+- `dinA` — Data input for memory A  
+- `dinB` — Data input for memory B  
+- `dinC` — Data input for memory C  
+- `addressA` — Address for memory A  
+- `addressB` — Address for memory B  
+- `addressC` — Address for memory C  
+- `addressD` — Address input for result memory  
+
+---
+
+## Outputs
+
+- `addressD_final` — Final output address  
+- `result_final` — Computed result (64-bit aggregated output)  
+- `start_final` — Completion/propagation signal  
+
+---
+
+## Instruction Set Architecture (ISA)
+
+### Initialization Phase
+- Load data into memories **A, B, and C**
+- Set corresponding **addresses** and **write enable signals**
+
+### Execution Phase
+- Assert the `start` signal to begin computation
+- The design performs a **Matrix Multiply-Accumulate (MAC)** operation using the tensor pipeline
+
 ## Repository Modules Overview
 
 This repository contains all hardware modules required to implement the BF16 Tensor Core MMA pipeline. Each file contributes to a specific stage of the memory access, arithmetic, or top‑level integration flow.
