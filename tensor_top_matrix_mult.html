@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tensor_top: For Matrix Multiplication</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1d26;
+    --text: #e8eaf0;
+    --text-dim: #a0a8b8;
+    --cyan: #00e5ff;
+    --green: #39ff6a;
+    --yellow: #f0c040;
+    --purple: #c084fc;
+    --red: #ff6666;
+    --blue: #7ec8ff;
+    --orange: #ffaa44;
+    --teal: #2dd4bf;
+    --wire: #3a3e50;
+    --wire-bright: #555c70;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    padding: 28px 32px 36px;
+    min-width: 980px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: var(--cyan);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    text-shadow: 0 0 18px rgba(0,229,255,0.3);
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+    letter-spacing: 0.07em;
+  }
+
+  /* ── Main datapath grid ── */
+  .datapath {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+    margin-bottom: 8px;
+  }
+
+  /* Vertical pipeline stage dividers */
+  .stage-divider {
+    width: 3px;
+    background: linear-gradient(to bottom, transparent 0%, var(--wire-bright) 15%, var(--wire-bright) 85%, transparent 100%);
+    flex-shrink: 0;
+    align-self: stretch;
+    margin: 0 6px;
+    position: relative;
+  }
+
+  /* Column labels above dividers */
+  .col-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .col-label {
+    font-size: 0.75rem;
+    color: var(--wire-bright);
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: 0.06em;
+  }
+
+  /* Generic box */
+  .box {
+    border: 2px solid;
+    border-radius: 7px;
+    padding: 12px 14px;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .box-title {
+    font-size: 0.95rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  .box-line {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+  }
+
+  /* ── Address & Control ── */
+  .col-ctrl {
+    flex: 0 0 148px;
+  }
+
+  .box-ctrl {
+    border-color: var(--yellow);
+    box-shadow: 0 0 10px rgba(240,192,64,0.15);
+    height: 100%;
+    min-height: 280px;
+  }
+  .box-ctrl .box-title { color: var(--yellow); font-size: 1rem; line-height: 1.4; text-align: center; }
+
+  .port-group {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .port-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    border-bottom: 1px solid #1e2130;
+    font-size: 0.82rem;
+  }
+  .port-row:last-child { border-bottom: none; }
+
+  .port-tag {
+    font-size: 0.78rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  .tag-a { background: rgba(57,255,106,0.15); color: var(--green); border: 1px solid var(--green); }
+  .tag-b { background: rgba(126,200,255,0.12); color: var(--blue); border: 1px solid var(--blue); }
+  .tag-label { color: var(--text-dim); }
+
+  /* ── A_B_mem ── */
+  .col-mem {
+    flex: 0 0 110px;
+  }
+
+  .box-mem {
+    border-color: var(--orange);
+    box-shadow: 0 0 10px rgba(255,170,68,0.15);
+    height: 100%;
+    min-height: 280px;
+    align-items: center;
+  }
+  .box-mem .box-title { color: var(--orange); text-align: center; font-size: 1rem; }
+
+  .bus-label {
+    font-size: 0.78rem;
+    color: var(--wire-bright);
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* ── MULT stage 1 column ── */
+  .col-mult1 {
+    flex: 0 0 146px;
+  }
+
+  .boxes-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+  }
+
+  .box-mult1 {
+    border-color: var(--blue);
+    box-shadow: 0 0 8px rgba(126,200,255,0.12);
+    flex: 1;
+    align-items: center;
+    text-align: center;
+  }
+  .box-mult1 .box-title { color: var(--blue); font-size: 0.9rem; }
+  .box-mult1 .box-line  { font-size: 0.83rem; }
+
+  /* ── MULT stage 2 column ── */
+  .col-mult2 {
+    flex: 0 0 126px;
+  }
+
+  .box-mult2 {
+    border-color: var(--teal);
+    box-shadow: 0 0 8px rgba(45,212,191,0.12);
+    flex: 1;
+    align-items: center;
+    text-align: center;
+  }
+  .box-mult2 .box-title { color: var(--teal); font-size: 0.9rem; }
+  .box-mult2 .box-line  { font-size: 0.83rem; }
+
+  /* ── ADD stages column ── */
+  .col-add1 {
+    flex: 0 0 142px;
+  }
+
+  .box-add {
+    border-color: var(--purple);
+    box-shadow: 0 0 8px rgba(192,132,252,0.12);
+    flex: 1;
+    align-items: center;
+    text-align: center;
+  }
+  .box-add .box-title { color: var(--purple); font-size: 0.9rem; }
+  .box-add .box-line  { font-size: 0.83rem; }
+
+  /* ── Final ADD ── */
+  .col-add2 {
+    flex: 0 0 128px;
+  }
+
+  .box-add2 {
+    border-color: var(--red);
+    box-shadow: 0 0 10px rgba(255,102,102,0.15);
+    height: 100%;
+    min-height: 280px;
+    align-items: center;
+    text-align: center;
+  }
+  .box-add2 .box-title { color: var(--red); font-size: 1rem; }
+
+  /* ── Output signals ── */
+  .col-out {
+    flex: 0 0 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding-left: 12px;
+    gap: 10px;
+  }
+
+  .out-sig {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .out-arrow {
+    width: 24px;
+    height: 2px;
+    background: var(--wire-bright);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .out-arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -4px;
+    border-left: 7px solid var(--wire-bright);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .out-name {
+    font-size: 0.88rem;
+    color: var(--cyan);
+    white-space: nowrap;
+  }
+
+  /* ── Bus labels between blocks ── */
+  .bus-between {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .bus-tag {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  /* ── Bottom global bus ── */
+  .global-bus {
+    height: 3px;
+    background: linear-gradient(to right, var(--yellow), var(--yellow) 12%, var(--wire) 12%, var(--wire) 88%, var(--yellow) 88%);
+    margin: 4px 0 16px;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .global-bus::before {
+    content: 'start_t  /  address_D_out';
+    position: absolute;
+    right: 0;
+    top: 6px;
+    font-size: 0.82rem;
+    color: var(--yellow);
+    white-space: nowrap;
+  }
+
+  /* ── Width annotations ── */
+  .width-ann {
+    font-size: 0.8rem;
+    color: var(--wire-bright);
+    text-align: center;
+    padding: 2px 0 4px;
+  }
+
+  /* Pair brackets for mult groups */
+  .pair-bracket {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 14px;
+  }
+
+  .brace {
+    width: 8px;
+    border: 2px solid var(--wire-bright);
+    border-radius: 0 4px 4px 0;
+    flex: 1;
+    border-left: none;
+  }
+
+  .brace-top { border-bottom: none; border-radius: 0 4px 0 0; }
+  .brace-bot { border-top: none;    border-radius: 0 0 4px 0; }
+
+</style>
+</head>
+<body>
+
+<h1>Tensor_top: &nbsp;For Matrix Multiplication</h1>
+<div class="subtitle">Datapath Architecture — BF16 Pipelined Multiply-Accumulate</div>
+
+<!-- ══ Main Datapath ══ -->
+<div class="datapath">
+
+  <!-- 1. Address & Control -->
+  <div class="col-ctrl">
+    <div class="box box-ctrl">
+      <div class="box-title">Address<br>calculation<br>&amp; control<br>unit</div>
+      <div class="port-group">
+        <div class="port-row"><span class="port-tag tag-a">dinA</span></div>
+        <div class="port-row"><span class="port-tag tag-a">WE A</span></div>
+        <div class="port-row"><span class="port-tag tag-a">WA A</span></div>
+        <div class="port-row" style="margin-top:6px;"><span class="port-tag tag-b">dinB</span></div>
+        <div class="port-row"><span class="port-tag tag-b">WE B</span></div>
+        <div class="port-row"><span class="port-tag tag-b">WA B</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- divider + 64-bit label -->
+  <div class="col-wrap" style="align-items:center;">
+    <div class="width-ann">64</div>
+    <div class="stage-divider" style="flex:1;"></div>
+  </div>
+
+  <!-- 2. A_B_mem -->
+  <div class="col-mem">
+    <div class="box box-mem">
+      <div class="box-title">A_B_mem</div>
+      <div class="bus-label">Dual-port<br>BRAM</div>
+    </div>
+  </div>
+
+  <!-- bus labels data_a / data_b -->
+  <div class="bus-between">
+    <div>
+      <div class="bus-tag" style="color:var(--green); border:1px solid var(--green); background:rgba(57,255,106,0.08);">data_a [63:0]</div>
+    </div>
+    <div>
+      <div class="bus-tag" style="color:var(--blue); border:1px solid var(--blue); background:rgba(126,200,255,0.08);">data_b [63:0]</div>
+    </div>
+  </div>
+
+  <!-- divider -->
+  <div class="stage-divider"></div>
+
+  <!-- 3. BFLOAT16_MULT stage-1 × 4 -->
+  <div class="col-mult1">
+    <div class="boxes-stack">
+      <div class="box box-mult1">
+        <div class="box-title">BFLOAT16_MULT</div>
+        <div class="box-line">stage-1</div>
+      </div>
+      <div class="box box-mult1">
+        <div class="box-title">BFLOAT16_MULT</div>
+        <div class="box-line">stage-1</div>
+      </div>
+      <div class="box box-mult1">
+        <div class="box-title">BFLOAT16_MULT</div>
+        <div class="box-line">stage-1</div>
+      </div>
+      <div class="box box-mult1">
+        <div class="box-title">BFLOAT16_MULT</div>
+        <div class="box-line">stage-1</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- divider -->
+  <div class="stage-divider"></div>
+
+  <!-- 4. MULT stage-2 × 4 -->
+  <div class="col-mult2">
+    <div class="boxes-stack">
+      <div class="box box-mult2">
+        <div class="box-title">MULT</div>
+        <div class="box-line">stage 2</div>
+      </div>
+      <div class="box box-mult2">
+        <div class="box-title">MULT</div>
+        <div class="box-line">stage-2</div>
+      </div>
+      <div class="box box-mult2">
+        <div class="box-title">MULT</div>
+        <div class="box-line">stage-2</div>
+      </div>
+      <div class="box box-mult2">
+        <div class="box-title">MULT</div>
+        <div class="box-line">stage-2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- divider -->
+  <div class="stage-divider"></div>
+
+  <!-- 5. BFLOAT16_ADD (2 stages) × 2, each spanning 2 MULT rows -->
+  <div class="col-add1">
+    <div class="boxes-stack">
+      <div class="box box-add">
+        <div class="box-title">BFLOAT16_ADD</div>
+        <div class="box-line">(2 stages)</div>
+      </div>
+      <div class="box box-add">
+        <div class="box-title">BFLOAT16_ADD</div>
+        <div class="box-line">(2 stages)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- divider -->
+  <div class="stage-divider"></div>
+
+  <!-- 6. Final Bfloat16_ADD (2 stage) -->
+  <div class="col-add2">
+    <div class="box box-add2">
+      <div class="box-title">Bfloat16_<br>ADD<br>(2 stage)</div>
+    </div>
+  </div>
+
+  <!-- Output signals -->
+  <div class="col-out">
+    <div class="out-sig" style="margin-top: 60px;">
+      <div class="out-arrow"></div>
+      <div class="out-name">data_D</div>
+    </div>
+    <div style="flex:1;"></div>
+    <div class="out-sig" style="margin-bottom: 24px;">
+      <div class="out-arrow"></div>
+      <div class="out-name">start_t</div>
+    </div>
+    <div class="out-sig" style="margin-bottom: 8px;">
+      <div class="out-arrow"></div>
+      <div class="out-name">address_D_out</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Global bus bar -->
+<div class="global-bus"></div>
+
+<!-- ══ Legend / Signal Table ══ -->
+<div style="display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-top:8px;">
+
+  <div style="border:2px solid #2a2d38; border-radius:8px; background:var(--surface2); padding:14px 16px;">
+    <div style="font-size:0.82rem; color:var(--blue); letter-spacing:0.1em; margin-bottom:10px; border-bottom:1px solid #2a2d38; padding-bottom:6px;">INPUT SIGNALS</div>
+    <div style="font-size:0.88rem; line-height:1.8; color:var(--text-dim);">
+      <span style="color:var(--green);">dinA</span> &nbsp;— Matrix A write data<br>
+      <span style="color:var(--green);">WE A / WA A</span> &nbsp;— Write enable / addr<br>
+      <span style="color:var(--blue);">dinB</span> &nbsp;— Matrix B write data<br>
+      <span style="color:var(--blue);">WE B / WA B</span> &nbsp;— Write enable / addr<br>
+      <span style="color:var(--yellow);">start_t</span> &nbsp;— Start trigger (global)
+    </div>
+  </div>
+
+  <div style="border:2px solid #2a2d38; border-radius:8px; background:var(--surface2); padding:14px 16px;">
+    <div style="font-size:0.82rem; color:var(--blue); letter-spacing:0.1em; margin-bottom:10px; border-bottom:1px solid #2a2d38; padding-bottom:6px;">PIPELINE STAGES</div>
+    <div style="font-size:0.88rem; line-height:1.9; color:var(--text-dim);">
+      <span style="color:var(--orange);">A_B_mem</span> &nbsp;— Dual-port BRAM<br>
+      <span style="color:var(--blue);">BFLOAT16_MULT s1</span> &nbsp;— ×4 lanes<br>
+      <span style="color:var(--teal);">MULT stage-2</span> &nbsp;— ×4 lanes<br>
+      <span style="color:var(--purple);">BFLOAT16_ADD</span> &nbsp;— 2-stage ×2<br>
+      <span style="color:var(--red);">Bfloat16_ADD</span> &nbsp;— Final 2-stage
+    </div>
+  </div>
+
+  <div style="border:2px solid #2a2d38; border-radius:8px; background:var(--surface2); padding:14px 16px;">
+    <div style="font-size:0.82rem; color:var(--blue); letter-spacing:0.1em; margin-bottom:10px; border-bottom:1px solid #2a2d38; padding-bottom:6px;">OUTPUT SIGNALS</div>
+    <div style="font-size:0.88rem; line-height:1.9; color:var(--text-dim);">
+      <span style="color:var(--cyan);">data_D</span> &nbsp;— Result matrix data out<br>
+      <span style="color:var(--cyan);">address_D_out</span> &nbsp;— Write address<br>
+      <span style="color:var(--yellow);">start_t</span> &nbsp;— Propagated timing ref<br>
+      <br>
+      Bus width: &nbsp;<span style="color:var(--text);">64-bit</span> (data_a, data_b)
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
