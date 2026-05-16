@@ -241,10 +241,10 @@ if(j_next!=2'b11)
 start_final<=1;
 else
 start_final<=0;
-result_final[15:0]<=dout1;
-result_final[31:16]<=dout2;
-result_final[47:32]<=dout3;
-result_final[63:48]<=dout4;
+  result_final[15:0]<=dout2;
+  result_final[31:16]<=dout1;
+  result_final[47:32]<=dout4;
+  result_final[63:48]<=dout3;
 addressD_final<=addressD_stage15;
 end
 end
